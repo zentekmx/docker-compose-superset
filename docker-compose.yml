@@ -1,0 +1,72 @@
+version: "3.7"
+
+services:
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+
+  db:
+    env_file: .env-non-dev
+    image: postgres:12
+    restart: unless-stopped
+    volumes:
+      - db_home:/var/lib/postgresql/data
+
+  superset:
+    env_file: .env-non-dev
+    image: apache/superset:latest-dev
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    restart: unless-stopped
+    ports:
+      - 8088:8088
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker:/app/docker
+      - superset_home:/app/superset_home
+
+  superset-init:
+    image: apache/superset:latest-dev
+    command: ["/app/docker/docker-init.sh"]
+    env_file: .env-non-dev
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker:/app/docker
+      - superset_home:/app/superset_home
+
+  superset-worker:
+    image: apache/superset:latest-dev
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    env_file: .env-non-dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker:/app/docker
+      - superset_home:/app/superset_home
+
+  superset-worker-beat:
+    image: apache/superset:latest-dev
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    env_file: .env-non-dev
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker:/app/docker
+      - superset_home:/app/superset_home
+
+volumes:
+  superset_home:
+    external: false
+  db_home:
+    external: false
+  redis:
+    external: false
